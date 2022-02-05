@@ -1,5 +1,4 @@
 import java.math.BigDecimal;
-
 /**
  * Permite crear floats de solo 16 bits,
  * no funciona con negativos
@@ -8,11 +7,12 @@ public class Float_16 {
     final int sign = 1;
     final int exponent = 5;
     final int mantissa = 10;
-    final int bias = 15;
+    final int bias = (int)Math.pow(2, (exponent-1))-1;
     int Exp = 0;
     float number = 0;
 
     public Float_16() {
+        //////.out.println("BIAS: " + bias);
     }
 
     /**
@@ -20,10 +20,11 @@ public class Float_16 {
      * @param n
      * @return string
      */
-    public String toBinary(float n) {
+    public String toBinary(double n) {
         BigDecimal number = new BigDecimal(String.valueOf(n));
         int whole = number.intValue();
-        float decimal = number.remainder(BigDecimal.ONE).floatValue();
+        double decimal = number.remainder(BigDecimal.ONE).doubleValue();
+        //.out.println(decimal);
         String binary = "";
         while (whole > 0) {
             if (whole % 2 == 0) {
@@ -41,10 +42,11 @@ public class Float_16 {
             while (decimal != 0.0 && i < bias) {
                 binary += ((int) (decimal * 2));
                 decimal = (decimal * 2) % 1;
+                //.out.println(decimal);
                 i++;
             }
         }
-        //System.out.println("Binario: " + binary);
+        ////.out.println( n + " Binario: " + binary);
         return binary;
     }
 
@@ -59,7 +61,6 @@ public class Float_16 {
         } else {
             exp = n.substring(0, n.indexOf('.')).length() - 1;
         }
-        // System.out.print("Exp = " + exp + " ");
         Exp = exp;
     }
 
@@ -93,7 +94,10 @@ public class Float_16 {
         } else {
             return n;
         }
-        //System.out.println("Normalizado: " + normalized + " Exp: " + getExp());
+        if(normalized.substring(normalized.indexOf('.')+1, normalized.length()).isEmpty()){
+            normalized += "0";
+        }
+        //////.out.println("Normalizado: " + normalized + " Exp: " + getExp());
         return normalized;
     }
 
@@ -105,6 +109,7 @@ public class Float_16 {
      * @return
      */
     public String getFloatingPoint(String n) {
+
         n = n.substring(2, n.length());
         String floatingPoint = "0";
         String exp = Integer.toBinaryString(bias + Exp);
@@ -119,7 +124,7 @@ public class Float_16 {
         while (floatingPoint.length() < (sign + exponent + mantissa)) {
             floatingPoint += "0";
         }
-        //System.out.println("Punto flotante: " + floatingPoint);
+        //////.out.println("Punto flotante: " + floatingPoint);
         return floatingPoint;
 
     }
@@ -131,10 +136,10 @@ public class Float_16 {
      * @return
      */
     public String overflow(String n) {
-        String number = n.substring(0, 10);
-        if (n.charAt(10) == '1') {
-            int decimal = Integer.parseInt(number, 2) + 1;
-            number = Integer.toBinaryString(decimal);
+        //////.out.println("APROXIMA");
+        String number = n.substring(0, mantissa);
+        if (n.charAt(mantissa) == '1') {
+            number = addOne(number);
             while (number.length() < mantissa) {
                 number = "0" + number;
             }
@@ -150,6 +155,7 @@ public class Float_16 {
      * @return
      */
     public float float16(float n) {
+        //////.out.println(n);
         number = n;
         String bit16 = getFloatingPoint(normalize(toBinary(n)));
         String binary = toBinary(bit16);
@@ -166,7 +172,7 @@ public class Float_16 {
      */
     public String toBinary(String n) {
         String binary = "";
-        String expfp = n.substring(1, 6);
+        String expfp = n.substring(1, exponent+1);
         int exp = Integer.parseInt(expfp, 2) - bias;
         if (exp < 0) {
             binary += "0.";
@@ -174,25 +180,25 @@ public class Float_16 {
                 binary += "0";
                 exp++;
             }
-            if(n.substring(6,n.length()).contains("1")){
-                binary += '1' + n.substring(6, n.lastIndexOf('1') + 1);
+            if(n.substring(exponent+1,n.length()).contains("1")){
+                binary += '1' + n.substring(exponent+1, n.lastIndexOf('1') + 1);
             }else{
                 binary += '1';
             }
 
         } else if (exp > 0) {
             binary += "1";
-            if (exp > 10) {
-                binary += n.substring(6, n.length());
-                exp = exp - 10;
+            if (exp > mantissa) {
+                binary += n.substring(exponent+1, n.length());
+                exp = exp - mantissa;
                 while (exp > 0) {
                     binary += "0";
                     exp--;
                 }
             } else {
-                binary += n.substring(6, 6 + exp);
-                if (n.substring(6 + exp, n.length()).contains("1")) {
-                    binary += "." + n.substring(6 + exp, n.lastIndexOf('1') + 1);
+                binary += n.substring(exponent+1, (exponent + exp+1));
+                if (n.substring(exponent + exp +1, n.length()).contains("1")) {
+                    binary += "." + n.substring(exponent + exp+1, n.lastIndexOf('1') + 1);
                 } else {
                     binary += ".0";
                 }
@@ -200,15 +206,57 @@ public class Float_16 {
 
         } else {
             binary += "1.";
-            if(n.substring(6,n.length()).contains("1")){
-                binary += n.substring(6, n.lastIndexOf('1') + 1);
+            if(n.substring(exponent+1,n.length()).contains("1")){
+                binary += n.substring(exponent+1, n.lastIndexOf('1') + 1);
             }else{
                 binary += '0';
             }
         }
-        //System.out.println("Binario convertido: " + binary);
+        //////.out.println("Binario convertido: " + binary);
         return binary;
     }
+
+    public String addOne(String n){
+        int pos = n.length()-1;
+        boolean carries = false;
+        String result = "";
+        //Initial
+        ////.out.println(n.charAt(pos));
+        if(n.charAt(pos) == '1'){
+            result = "0"+result;
+            carries = true;
+        }else{
+            result = "1"+result;
+        }
+        pos--;
+        while(pos >= 0){
+            if(carries){
+                if(n.charAt(pos) == '1'){
+                    result = "0"+result;
+                    carries = true;
+                }else {
+                    result = "1"+result;
+                    carries = false;
+                }
+            }else{
+                if(n.charAt(pos) == '0'){
+                    result = "0"+result;
+                }else{
+                    result = "1"+result;
+                }
+            }
+            pos--;
+        }
+        if(carries){
+            result = "1"+result;
+        }
+        return result;
+
+
+
+
+    }
+
 
     /**
      * Retorna el valor de un numero binario
@@ -242,7 +290,7 @@ public class Float_16 {
                 x--;
             }
         }
-        //System.out.println("Resultado. " + number);
+        //////.out.println("Resultado. " + number);
         return number;
     }
 }
